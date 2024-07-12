@@ -33,15 +33,15 @@ def train_gam(X, y, numBasisFcts=10):
     return result
 
 
-def selGam(X, k, cutOffPVal=0.001, numBasisFcts=10, output=False):
+def selGam(X, y, k, cutOffPVal=0.001, numBasisFcts=10, output=False):
     p = X.shape
-    if p[1] > 1: 
-        mod_gam = train_gam(X[:, :k], X[:, k:], numBasisFcts=numBasisFcts)
+    if p[1] > 0: 
+        mod_gam = train_gam(X, y, numBasisFcts=numBasisFcts)
         pValVec = np.array(mod_gam['p_values'])
 
         if output:
             print(f"vector of p-values:{pValVec}")
-        if len(pValVec) != p[1]: 
+        if len(pValVec) - 1 != p[1]: 
             print("This should never happen (function selGam).")
         selVec = pValVec[:k] < cutOffPVal
     else:
@@ -60,8 +60,7 @@ def pruning(X, G, output=False, pruneMethod=selGam, cutOffPVal=0.001, numBasisFc
             print(f"Pruning variable: {i}")
             print(f"Considered parents: {parents}")
         if lenpa > 0:
-            Xtmp = np.column_stack((X[:, parents], X[:, i]))
-            selectedPar = pruneMethod(Xtmp, k=lenpa, cutOffPVal=cutOffPVal, numBasisFcts=numBasisFcts, output=output)
+            selectedPar = pruneMethod(X[:, parents], X[:, i].reshape(-1,1), k=lenpa, cutOffPVal=cutOffPVal, numBasisFcts=numBasisFcts, output=output)
             finalParents = parents[selectedPar] 
             finalG[finalParents, i] = 1
     return finalG
@@ -70,4 +69,3 @@ def pruning(X, G, output=False, pruneMethod=selGam, cutOffPVal=0.001, numBasisFc
 def cam_pruning(A, X, cutoff):
     dag = pruning(X, A, output=False, pruneMethod=selGam, cutOffPVal=cutoff, numBasisFcts=10)
     return dag
-
