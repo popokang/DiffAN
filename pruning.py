@@ -11,7 +11,7 @@ def train_gam(X, y, numBasisFcts=10):
     terms = TermList()
     for i in range(p[1]):
         terms += SplineTerm(i, n_splines=numBasisFcts)
-    try:
+    try: # FIXME
         mod_gam = LinearGAM(terms).gridsearch(X,y)
     except:
         print("There was some error with gam. The smoothing parameter is set to zero.")
