@@ -9,14 +9,14 @@ def train_gam(X, y, numBasisFcts=10):
         numBasisFcts = int(np.ceil(p[0]/(3*p[1])))
         print(f"Changed number of basis functions to {numBasisFcts} in order to have enough samples per basis function")
     terms = TermList()
-    for i in range(X.shape[1]):
+    for i in range(p[1]):
         terms += SplineTerm(i, n_splines=numBasisFcts)
     try:
         mod_gam = LinearGAM(terms).gridsearch(X,y)
     except:
         print("There was some error with gam. The smoothing parameter is set to zero.")
         terms = TermList()
-        for i in range(X.shape[1]):
+        for i in range(p[1]):
             terms += SplineTerm(i, n_splines=numBasisFcts, lam=0)
         mod_gam = LinearGAM(terms).fit(X,y)
 
