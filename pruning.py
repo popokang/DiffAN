@@ -2,24 +2,22 @@ import numpy as np
 from pygam import LinearGAM
 from pygam.terms import TermList, SplineTerm
 
-def train_gam(X, y, pars = {'numBasisFcts':10}):
-    if 'numBasisFcts' not in pars:
-        pars['numBasisFcts'] = 10
+def train_gam(X, y, numBasisFcts=10):
 
     p = X.shape
-    if p[0]/p[1] < 3*pars['numBasisFcts']:
-        pars['numBasisFcts'] = int(np.ceil(p[0]/(3*p[1])))
-        print(f"Changed number of basis functions to {pars['numBasisFcts']} in order to have enough samples per basis function")
+    if p[0]/p[1] < 3*numBasisFcts:
+        numBasisFcts = int(np.ceil(p[0]/(3*p[1])))
+        print(f"Changed number of basis functions to {numBasisFcts} in order to have enough samples per basis function")
     terms = TermList()
     for i in range(X.shape[1]):
-        terms += SplineTerm(i, n_splines=pars['numBasisFcts'])
+        terms += SplineTerm(i, n_splines=numBasisFcts)
     try:
         mod_gam = LinearGAM(terms).gridsearch(X,y)
     except:
         print("There was some error with gam. The smoothing parameter is set to zero.")
         terms = TermList()
         for i in range(X.shape[1]):
-            terms += SplineTerm(i, n_splines=pars['numBasisFcts'], lam=0)
+            terms += SplineTerm(i, n_splines=numBasisFcts, lam=0)
         mod_gam = LinearGAM(terms).fit(X,y)
 
     result = {
@@ -35,24 +33,23 @@ def train_gam(X, y, pars = {'numBasisFcts':10}):
     return result
 
 
-def selGam(X, k, pars={'cutOffPVal':0.001, 'numBasisFcts':10}, output = False):
+def selGam(X, k, cutOffPVal=0.001, numBasisFcts=10, output=False):
     p = X.shape
     if p[1] > 1: 
-        selVec = [False] * p[1]
-        mod_gam = train_gam(X[:,:k], X[:, k].reshape(-1, 1), pars)
-        pValVec = np.array(mod_gam['p_values'])[:k]
+        mod_gam = train_gam(X[:, :k], X[:, k:], numBasisFcts=numBasisFcts)
+        pValVec = np.array(mod_gam['p_values'])
 
         if output:
             print(f"vector of p-values:{pValVec}")
-        if len(pValVec) != len(selVec) - 1: 
+        if len(pValVec) != p[1]: 
             print("This should never happen (function selGam).")
-        selVec[:k] = pValVec < pars['cutOffPVal']
+        selVec = pValVec[:k] < cutOffPVal
     else:
-        selVec = []
+        selVec = np.array([])
     return selVec
 
 
-def pruning(X, G, output=False, pruneMethod=selGam, pruneMethodPars={'cutOffPVal': 0.001, 'numBasisFcts': 10}):
+def pruning(X, G, output=False, pruneMethod=selGam, cutOffPVal=0.001, numBasisFcts=10):
     p = G.shape[0] 
     finalG = np.zeros((p, p))
 
@@ -64,14 +61,13 @@ def pruning(X, G, output=False, pruneMethod=selGam, pruneMethodPars={'cutOffPVal
             print(f"Considered parents: {parents}")
         if lenpa > 0:
             Xtmp = np.column_stack((X[:, parents], X[:, i]))
-            selectedPar = pruneMethod(Xtmp, k=lenpa, pars=pruneMethodPars, output=output)
-            finalParents = parents[np.array(selectedPar)[:-1]]
+            selectedPar = pruneMethod(Xtmp, k=lenpa, cutOffPVal=cutOffPVal, numBasisFcts=numBasisFcts, output=output)
+            finalParents = parents[selectedPar] 
             finalG[finalParents, i] = 1
     return finalG
 
 
 def cam_pruning(A, X, cutoff):
-    np.random.seed(42)
-    dag = pruning(X, A, output=False, pruneMethod=selGam, pruneMethodPars={'cutOffPVal': cutoff, 'numBasisFcts': 10})
+    dag = pruning(X, A, output=False, pruneMethod=selGam, cutOffPVal=cutoff, numBasisFcts=10)
     return dag
 
